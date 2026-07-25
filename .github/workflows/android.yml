@@ -13,11 +13,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Unzip Project Files
+    - name: Unzip and Setup Project
       run: |
         unzip -o untitled.zip
-        if [ -d "untitled" ]; then
-          cp -rn untitled/* . 2>/dev/null || true
+        GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+        if [ -n "$GRADLEW_PATH" ]; then
+          DIR=$(dirname "$GRADLEW_PATH")
+          if [ "$DIR" != "." ]; then
+            echo "Moving files from $DIR to root..."
+            cp -rn $DIR/* . 2>/dev/null || true
+            cp -rn $DIR/.* . 2>/dev/null || true
+          fi
         fi
 
     - name: Set up JDK 17
