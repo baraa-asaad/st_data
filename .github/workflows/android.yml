@@ -16,14 +16,12 @@ jobs:
     - name: Unzip and Setup Project
       run: |
         unzip -o untitled.zip
-        GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
-        if [ -n "$GRADLEW_PATH" ]; then
-          DIR=$(dirname "$GRADLEW_PATH")
-          if [ "$DIR" != "." ]; then
-            echo "Moving files from $DIR to root..."
-            cp -rn $DIR/* . 2>/dev/null || true
-            cp -rn $DIR/.* . 2>/dev/null || true
-          fi
+        # البحث عن مجلد المشروع ونقل محتوياته للمسار الرئيسي
+        SUBDIR=$(find . -maxdepth 2 -type f -name "build.gradle*" -exec dirname {} \;)
+        if [ -n "$SUBDIR" ] && [ "$SUBDIR" != "." ]; then
+          echo "Moving files from $SUBDIR to root..."
+          cp -rn $SUBDIR/* . 2>/dev/null || true
+          cp -rn $SUBDIR/.* . 2>/dev/null || true
         fi
 
     - name: Set up JDK 17
@@ -31,16 +29,21 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-    - name: Build APK with Gradle
-      run: ./gradlew assembleDebug --stacktrace
+    - name: Build APK
+      run: |
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+        else
+          gradle assembleDebug --stacktrace
+        fi
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: "**/build/outputs/apk/debug/*.apk"
