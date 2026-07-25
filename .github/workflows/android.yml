@@ -13,16 +13,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Unzip and Setup Project
-      run: |
-        unzip -o untitled.zip
-        SUBDIR=$(find . -maxdepth 2 -type f -name "build.gradle*" -exec dirname {} \;)
-        if [ -n "$SUBDIR" ] && [ "$SUBDIR" != "." ]; then
-          echo "Moving files from $SUBDIR to root..."
-          cp -rn $SUBDIR/* . 2>/dev/null || true
-          cp -rn $SUBDIR/.* . 2>/dev/null || true
-        fi
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -35,14 +25,33 @@ jobs:
     - name: Accept Android SDK Licenses
       run: yes | sdkmanager --licenses || true
 
-    - name: Build APK
+    - name: Unzip and Smart Fix Directory Structure
       run: |
-        if [ -f "gradlew" ]; then
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-        else
-          gradle assembleDebug --stacktrace
+        mkdir temp_zip
+        unzip -o untitled.zip -d temp_zip
+        TARGET_DIR=$(find temp_zip -name "settings.gradle*" -exec dirname {} \; | head -n 1)
+        if [ -z "$TARGET_DIR" ]; then
+          TARGET_DIR="temp_zip"
         fi
+        cp -r "$TARGET_DIR"/* . 2>/dev/null || true
+        cp -r "$TARGET_DIR"/.* . 2>/dev/null || true
+        rm -rf temp_zip
+
+    - name: Generate Debug Keystore
+      run: |
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        mkdir -p ~/.android
+        cp debug.keystore ~/.android/debug.keystore
+
+    - name: Setup Gradle Wrapper
+      run: |
+        if [ ! -f "gradlew" ]; then
+          gradle wrapper
+        fi
+        chmod +x gradlew
+
+    - name: Build APK with Gradle
+      run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
