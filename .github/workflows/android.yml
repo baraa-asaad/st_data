@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,8 +56,11 @@ jobs:
     - name: Build APK with Gradle
       run: ./gradlew assembleDebug --stacktrace
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
+    - name: Publish APK to GitHub Releases
+      uses: softprops/action-gh-release@v2
       with:
-        name: app-debug
-        path: "**/build/outputs/apk/debug/*.apk"
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        files: "**/build/outputs/apk/debug/*.apk"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
